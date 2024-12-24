@@ -20,15 +20,16 @@ def extract_invoice_info(pdf_file):
     )
     address_found = address_pattern.search(text) is not None
 
-    # 3) Check for GST number
-    gst_pattern = re.compile(r'\d{9}\s?[A-Z]{2}\s?\d{4}', re.IGNORECASE)
-    gst_found = gst_pattern.search(text) is not None
+    # 3) Check for GST/HST number (same regex for both)
+    gst_hst_pattern = re.compile(r'\d{9}\s?[A-Z]{2}\s?\d{4}', re.IGNORECASE)
+    gst_hst_number = gst_hst_pattern.search(text)
+    gst_hst_found = gst_hst_number is not None
+    if gst_hst_found:
+        gst_hst_number = gst_hst_number.group().strip()
+    else:
+        gst_hst_number = None
 
-    # 4) Check for HST number (must include 'HST')
-    hst_pattern = re.compile(r'HST\s*[:#]?\s*\d{9}\s?[A-Z]{2}\s?\d{4}', re.IGNORECASE)
-    hst_found = hst_pattern.search(text) is not None
-
-    # 5) Check for Invoice number in various formats
+    # 4) Check for Invoice number in various formats
     invoice_pattern = re.compile(
         r'(invoice\s*(number|no\.|#)\s*[:#]?\s*([0-9\-/._\[\]()]+))',
         re.IGNORECASE
@@ -46,8 +47,7 @@ def extract_invoice_info(pdf_file):
     return {
         'emile_corp_found': emile_corp_found,
         'address_found': address_found,
-        'gst_found': gst_found,
-        'hst_found': hst_found,
+        'gst_hst_number': gst_hst_number,  # Combined GST/HST
         'invoice_number': invoice_number,
     }
 
@@ -69,4 +69,7 @@ if uploaded_file is not None:
     
     # Display the results
     st.subheader("Extracted Invoice Information")
-    st.write(invoice_info)
+    st.write(f"**Emile Corporation Found:** {invoice_info['emile_corp_found']}")
+    st.write(f"**Address Found:** {invoice_info['address_found']}")
+    st.write(f"**GST/HST Number:** {invoice_info['gst_hst_number']}")
+    st.write(f"**Invoice Number:** {invoice_info['invoice_number']}")
