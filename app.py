@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 import pdfplumber
 import re
 import io
@@ -20,7 +21,7 @@ def extract_invoice_info(pdf_file):
     )
     address_found = address_pattern.search(text) is not None
 
-    # 3) Check for GST/HST number (same regex for both)
+    # 3) Check for GST/HST number
     gst_hst_pattern = re.compile(r'\d{9}\s?[A-Z]{2}\s?\d{4}', re.IGNORECASE)
     gst_hst_number = gst_hst_pattern.search(text)
     gst_hst_found = gst_hst_number is not None
@@ -45,31 +46,48 @@ def extract_invoice_info(pdf_file):
 
     # Return the results
     return {
-        'emile_corp_found': emile_corp_found,
-        'address_found': address_found,
-        'gst_hst_number': gst_hst_number,  # Combined GST/HST
-        'invoice_number': invoice_number,
+        'Emile Corporation Found': emile_corp_found,
+        'Address Found': address_found,
+        'GST/HST Number': gst_hst_number,
+        'Invoice Number': invoice_number,
     }
 
 # Streamlit UI
-st.title("Invoice Information Extractor")
+st.title("Batch Invoice Information Extractor")
 
-# Allow the user to upload a PDF
-uploaded_file = st.file_uploader("Upload a PDF Invoice", type="pdf")
+# Allow the user to upload multiple PDFs
+uploaded_files = st.file_uploader("Upload PDF Invoices", type="pdf", accept_multiple_files=True)
 
-if uploaded_file is not None:
-    # Display the uploaded file name
-    st.write(f"File Name: {uploaded_file.name}")
+if uploaded_files:
+    # Initialize a list to store results
+    results = []
 
-    # Convert the uploaded file to a file-like object
-    pdf_file = io.BytesIO(uploaded_file.read())
+    # Process each uploaded PDF
+    for uploaded_file in uploaded_files:
+        # Convert the uploaded file to a file-like object
+        pdf_file = io.BytesIO(uploaded_file.read())
 
-    # Extract information from the uploaded PDF
-    invoice_info = extract_invoice_info(pdf_file)
-    
+        # Extract information from the uploaded PDF
+        invoice_info = extract_invoice_info(pdf_file)
+
+        # Add the file name and extracted info to the results
+        invoice_info['File Name'] = uploaded_file.name
+        results.append(invoice_info)
+
     # Display the results
     st.subheader("Extracted Invoice Information")
-    st.write(f"**Emile Corporation Found:** {invoice_info['emile_corp_found']}")
-    st.write(f"**Address Found:** {invoice_info['address_found']}")
-    st.write(f"**GST/HST Number:** {invoice_info['gst_hst_number']}")
-    st.write(f"**Invoice Number:** {invoice_info['invoice_number']}")
+    for result in results:
+        st.write(f"**File Name:** {result['File Name']}")
+        st.write(f"**Emile Corporation Found:** {result['Emile Corporation Found']}")
+        st.write(f"**Address Found:** {result['Address Found']}")
+        st.write(f"**GST/HST Number:** {result['GST/HST Number']}")
+        st.write(f"**Invoice Number:** {result['Invoice Number']}")
+        st.write("---")
+
+    # Optional: Display a download button for consolidated results
+    st.download_button(
+        label="Download Results as CSV",
+        data=pd.DataFrame(results).to_csv(index=False),
+        file_name="invoice_extraction_results.csv",
+        mime="text/csv",
+    )
